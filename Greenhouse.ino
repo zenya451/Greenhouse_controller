@@ -1,6 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "ThingSpeak.h"
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
 #define MSG_BUFFER_SIZE  (50)
 
@@ -27,24 +30,24 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 
-
 void setup() {
   Serial.begin(115200);
   wifi_setup();
   client.setServer(mqtt_server, 1883);
   ThingSpeak.begin(espClient);
+  ArduinoOTA.setHostname("ESP8266");
+  ArduinoOTA.begin();
 }
 
 
 void loop() {
-  
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
-
   MQTT();
   thingspeak();
+  ArduinoOTA.handle();
 }
 
 
