@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ThingSpeak.h>
-#include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -93,6 +92,7 @@ void wifi_setup() {
 
 void reconnect() {
   while (!client.connected()) {
+    udp();
     Serial.print("Attempting MQTT connection...");
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
