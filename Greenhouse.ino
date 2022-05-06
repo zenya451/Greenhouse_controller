@@ -5,6 +5,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiUdp.h>
+#include <ESP8266WebServer.h>
 
 #define MSG_BUFFER_SIZE  (10)
 #define ONE_WIRE_BUS D3
@@ -40,6 +41,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 DeviceAddress temperatureSensors[3];
 WiFiUDP Udp;
+ESP8266WebServer http_server(80);
 
 void setup() {
   Serial.begin(115200);
@@ -53,8 +55,9 @@ void setup() {
   for (uint8_t index = 0; index < deviceCount; index++){
     sensors.getAddress(temperatureSensors[index], index);
   }
+  http_server.begin();
+  http_server.on("/", handleRoot);
 }
-
 
 void loop() {
   if (!client.connected()) {
@@ -65,8 +68,8 @@ void loop() {
   thingspeak();
   udp();
   ArduinoOTA.handle();
+  http_server.handleClient();
 }
-
 
 void wifi_setup() {
   delay(10);
@@ -185,4 +188,19 @@ void udp(){
     Udp.write(str3);
     Udp.endPacket();
   }
+}
+
+void handleRoot(){
+  String webpage;
+  webpage = "<html><head><meta charset=utf-8><meta http-equiv=\"refresh\" content=\"2\"><title>ESP</title></head><body><div>Датчик 1: "
+            + T(0) + "</div><div>Датчик 2: " + T(1) +"</div><div>Датчик 3: " + T(2) + "</div></body></html>";
+  http_server.send(200, "text/html", webpage);
+}
+
+String T(int i){
+  sensors.requestTemperatures();
+  char temp[8];
+  float t = sensors.getTempC(temperatureSensors[i]);
+  snprintf (temp, 8, "%f", t);
+  return temp;
 }
