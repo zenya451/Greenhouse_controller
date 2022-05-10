@@ -26,6 +26,7 @@ const char* Write_API_Key_3 = "";
 unsigned long lastMqttMsg = 0;
 unsigned long lastThingMsg = 0;
 unsigned long lastUdpMsg = 0;
+unsigned long lastReconnect = 0;
 
 bool s1 = true;
 bool s2 = true;
@@ -95,18 +96,24 @@ void wifi_setup() {
 
 void reconnect() {
   while (!client.connected()) {
-    udp();
-    Serial.print("Attempting MQTT connection...");
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
+    unsigned long nowR = millis();
+    if (nowR - lastReconnect > 5000) {
+      lastReconnect = nowR;
+
+      Serial.print("Attempting MQTT connection...");
+      String clientId = "ESP8266Client-";
+      clientId += String(random(0xffff), HEX);
+      if (client.connect(clientId.c_str())) {
+        Serial.println("connected");
+      } else {
+        Serial.print("failed, rc=");
+        Serial.print(client.state());
+        Serial.println(" try again in 5 seconds");
+      }
     }
+    udp();
+    http_server.handleClient();
+    ArduinoOTA.handle();
   }
 }
 
