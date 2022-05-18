@@ -5,7 +5,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiUdp.h>
-#include <ESP8266WebServer.h>
+#include <GyverPortal.h>      //https://github.com/GyverLibs/GyverPortal
 
 #define MSG_BUFFER_SIZE  (10)
 #define ONE_WIRE_BUS D3
@@ -42,7 +42,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 DeviceAddress temperatureSensors[3];
 WiFiUDP Udp;
-ESP8266WebServer http_server(80);
+GyverPortal portal;
 
 void setup() {
   Serial.begin(115200);
@@ -56,8 +56,8 @@ void setup() {
   for (uint8_t index = 0; index < deviceCount; index++){
     sensors.getAddress(temperatureSensors[index], index);
   }
-  http_server.begin();
-  http_server.on("/", handleRoot);
+  portal.attachBuild(build);
+  portal.start();
 }
 
 void loop() {
@@ -69,7 +69,7 @@ void loop() {
   thingspeak();
   udp();
   ArduinoOTA.handle();
-  http_server.handleClient();
+  web();
 }
 
 void wifi_setup() {
@@ -112,8 +112,8 @@ void reconnect() {
       }
     }
     udp();
-    http_server.handleClient();
     ArduinoOTA.handle();
+    web();
   }
 }
 
@@ -124,7 +124,6 @@ void MQTT() {
     
     sensors.requestTemperatures();
     
-    //long t1 = (WiFi.RSSI() * -1);
     float t1 = sensors.getTempC(temperatureSensors[0]);
     snprintf (temp1, MSG_BUFFER_SIZE, "%f", t1);
     client.publish("Topic1", temp1);
@@ -197,17 +196,44 @@ void udp(){
   }
 }
 
-void handleRoot(){
-  String webpage;
-  webpage = "<html><head><meta charset=utf-8><meta http-equiv=\"refresh\" content=\"2\"><title>ESP</title></head><body><div>Датчик 1: "
-            + T(0) + "</div><div>Датчик 2: " + T(1) +"</div><div>Датчик 3: " + T(2) + "</div></body></html>";
-  http_server.send(200, "text/html", webpage);
-}
-
 String T(int i){
   sensors.requestTemperatures();
-  char temp[8];
+  char temp[6];
   float t = sensors.getTempC(temperatureSensors[i]);
-  snprintf (temp, 8, "%f", t);
+  snprintf (temp, 6, "%f", t);
   return temp;
+}
+
+void web() {
+  portal.tick();
+
+  if (portal.update()) {
+    if (portal.update("val1")) portal.answer(T(0));
+    if (portal.update("val2")) portal.answer(T(1));
+    if (portal.update("val3")) portal.answer(T(2));
+  }
+}
+
+void build() {
+  String s;
+  BUILD_BEGIN(s);
+  add.THEME(GP_DARK);
+
+  add.AJAX_UPDATE("val1,val2,val3,",2000);
+
+  add.TITLE("Теплица");
+  add.HR();
+  add.LABEL("Датчик 1: ");
+  add.LABEL("-", "val1");
+  add.BREAK();
+
+  add.LABEL("Датчик 2: ");
+  add.LABEL("-", "val2");
+  add.BREAK();
+
+  add.LABEL("Датчик 3: ");
+  add.LABEL("-", "val3");
+  add.BREAK();
+  
+  BUILD_END();
 }
